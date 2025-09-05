@@ -30,3 +30,4 @@ networks:
   public-network:
     name: public-network
     external: true
+
