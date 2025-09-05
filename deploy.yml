@@ -1,0 +1,29 @@
+name: Pull changes and restart docker apps
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy with Docker Compose
+      uses: actions/checkout@v4
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+            cd /var/www
+            # Pull the latest changes from GitHub  (not needed since checkout command is already doing it?)
+            git pull --ff-only
+            # Restart Docker services
+            cd /var/www/common
+            sh docker-start-apps.sh
