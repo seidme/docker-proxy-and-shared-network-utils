@@ -11,6 +11,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certbot/etc:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
+      - ./codeeve/html:/var/www/codeeve/html:ro
     networks:
       - public-network
 
