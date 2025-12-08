@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+# set -e
 
 # CONFIG — change if your folder differs
 CERTBOT_ETC="./certbot/etc"
