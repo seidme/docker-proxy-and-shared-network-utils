@@ -8,7 +8,7 @@ echo "=== Stopping nginx-proxy ==="
 docker stop nginx-proxy
 
 echo "=== Running certbot renew on port 80 (standalone mode) ==="
-docker run --rm -it \
+docker run --rm \
   -p 80:80 \
   -v "$(pwd)/certbot/etc:/etc/letsencrypt" \
   certbot/certbot renew
