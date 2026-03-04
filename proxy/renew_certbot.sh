@@ -11,7 +11,7 @@ echo "=== Running certbot renew on port 80 (standalone mode) ==="
 /usr/bin/docker run --rm \
   -p 80:80 \
   -v "$(pwd)/certbot/etc:/etc/letsencrypt" \
-  certbot/certbot renew
+  certbot/certbot renew --non-interactive
 
 echo "=== Starting nginx-proxy ==="
 /usr/bin/docker start nginx-proxy
