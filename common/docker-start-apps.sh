@@ -27,7 +27,7 @@ cd "$PROXY_PATH"
 # docker compose pull # Optional: Pull latest images before starting
 docker compose up -d
 
-# Step 2: Start the scout application stack.
+# Step 2: Start the scout application stack (piker-api, piker-web, emo-api, postgresdb, browser-service).
 echo "Starting scout application stack..."
 cd "$SCOUT_PATH"
 # docker compose pull # Optional: Pull latest images before starting
