@@ -5,7 +5,7 @@ BACKUP_DIR="/var/www/scout/db/backups"
 DATE=$(date +%F)
 BACKUP_FILE="${BACKUP_DIR}/Scout2DB-AB-${DATE}.sql.gz"
 RCLONE_BIN="/home/seidme/.local/bin/rclone"
-GDRIVE_REMOTE="gdrive:_dev/dbs/autobackups"
+GDRIVE_REMOTE="gdrive:"
 
 echo "=== [$(date '+%Y-%m-%d %H:%M:%S')] Starting automated database backup ==="
 
@@ -24,7 +24,7 @@ echo "New backup created successfully: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cu
 
 # 3. Ako je rclone konfigurisan, uploadaj samo ovaj novi backup na Google Drive
 if "$RCLONE_BIN" listremotes 2>/dev/null | grep -q "^gdrive:"; then
-    echo "=== Uploading new backup to Google Drive ($GDRIVE_REMOTE) ==="
+    echo "=== Uploading new backup to Google Drive folder ==="
     "$RCLONE_BIN" copyto "$BACKUP_FILE" "$GDRIVE_REMOTE/$(basename "$BACKUP_FILE")" --log-level NOTICE
     
     echo "Google Drive upload finished successfully."
