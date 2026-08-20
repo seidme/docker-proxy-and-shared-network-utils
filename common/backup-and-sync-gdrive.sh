@@ -20,22 +20,29 @@ if [ ! -s "$BACKUP_FILE" ] || [ "$FILE_SIZE" -lt 1048576 ]; then
     exit 1
 fi
 
-echo "Backup created successfully: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+echo "New backup created successfully: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
 
-# 3. Ako je rclone konfigurisan, pošalji na Google Drive
+# 3. Ako je rclone konfigurisan, uploadaj samo ovaj novi backup na Google Drive
 if "$RCLONE_BIN" listremotes 2>/dev/null | grep -q "^gdrive:"; then
-    echo "=== Syncing backups to Google Drive ($GDRIVE_REMOTE) ==="
-    "$RCLONE_BIN" copy "$BACKUP_DIR" "$GDRIVE_REMOTE" --include "Scout2DB-AB-*.sql*" --log-level NOTICE
+    echo "=== Uploading new backup to Google Drive ($GDRIVE_REMOTE) ==="
+    "$RCLONE_BIN" copyto "$BACKUP_FILE" "$GDRIVE_REMOTE/$(basename "$BACKUP_FILE")" --log-level NOTICE
     
-    echo "Google Drive sync finished successfully."
+    echo "Google Drive upload finished successfully."
     
-    # 4. Nakon potvrđenog uploada na Google Drive, obriši starije lokalne backupe sa servera (ostavi samo zadnji kreirani!)
-    echo "Cleaning older local backups (keeping only the latest on server)..."
-    ls -t "$BACKUP_DIR"/Scout2DB-AB-*.sql* 2>/dev/null | tail -n +2 | xargs -r rm -f
-    echo "Local disk space optimized: only latest backup retained on server."
+    # 4. Nakon uspješnog uploada, obriši SAMO prethodni automatski backup (ne sve ostale)
+    # Pronađi sve automatske backupe sortirane po vremenu (najnoviji prvi)
+    AUTO_BACKUPS=($(ls -t "$BACKUP_DIR"/Scout2DB-AB-*.sql* 2>/dev/null || true))
+    
+    # Ako imamo 2 ili više automatskih backupa, AUTO_BACKUPS[1] je tačno onaj prethodni
+    if [ ${#AUTO_BACKUPS[@]} -ge 2 ]; then
+        PREV_BACKUP="${AUTO_BACKUPS[1]}"
+        if [ -f "$PREV_BACKUP" ] && [ "$PREV_BACKUP" != "$BACKUP_FILE" ]; then
+            echo "Deleting only the previous automatic backup: $PREV_BACKUP"
+            rm -f "$PREV_BACKUP"
+        fi
+    fi
 else
-    echo "NOTICE: 'gdrive' remote is not yet configured in rclone. Keeping standard 7-day retention locally."
-    find "$BACKUP_DIR" -name "*AB-*.sql*" -mtime +7 -delete
+    echo "NOTICE: 'gdrive' remote is not yet configured in rclone."
 fi
 
 echo "=== [$(date '+%Y-%m-%d %H:%M:%S')] Backup process completed successfully ==="
