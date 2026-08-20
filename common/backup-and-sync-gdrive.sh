@@ -5,7 +5,7 @@ BACKUP_DIR="/var/www/scout/db/backups"
 DATE=$(date +%F)
 BACKUP_FILE="${BACKUP_DIR}/Scout2DB-AB-${DATE}.sql.gz"
 RCLONE_BIN="/home/seidme/.local/bin/rclone"
-GDRIVE_REMOTE="gdrive:ServerBackups/Scout2DB"
+GDRIVE_REMOTE="gdrive:_dev/dbs/autobackups"
 
 echo "=== [$(date '+%Y-%m-%d %H:%M:%S')] Starting automated database backup ==="
 
@@ -30,10 +30,8 @@ if "$RCLONE_BIN" listremotes 2>/dev/null | grep -q "^gdrive:"; then
     echo "Google Drive upload finished successfully."
     
     # 4. Nakon uspješnog uploada, obriši SAMO prethodni automatski backup (ne sve ostale)
-    # Pronađi sve automatske backupe sortirane po vremenu (najnoviji prvi)
     AUTO_BACKUPS=($(ls -t "$BACKUP_DIR"/Scout2DB-AB-*.sql* 2>/dev/null || true))
     
-    # Ako imamo 2 ili više automatskih backupa, AUTO_BACKUPS[1] je tačno onaj prethodni
     if [ ${#AUTO_BACKUPS[@]} -ge 2 ]; then
         PREV_BACKUP="${AUTO_BACKUPS[1]}"
         if [ -f "$PREV_BACKUP" ] && [ "$PREV_BACKUP" != "$BACKUP_FILE" ]; then
