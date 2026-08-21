@@ -43,4 +43,8 @@ else
     echo "NOTICE: 'gdrive' remote is not yet configured in rclone."
 fi
 
+# 5. Očisti privremeni Docker build cache i neiskorištene slojeve (sprječava gomilanje na disku)
+echo "=== Cleaning temporary Docker build cache ==="
+/usr/bin/docker builder prune -f --keep-storage 1GB 2>/dev/null || true
+
 echo "=== [$(date '+%Y-%m-%d %H:%M:%S')] Backup process completed successfully ==="
