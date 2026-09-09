@@ -35,19 +35,19 @@ docker compose up -d
 echo "Starting scout application stack..."
 cd "$SCOUT_PATH"
 # docker compose pull # Optional: Pull latest images before starting
-docker compose up -d --build
+docker compose up -d
 
 # Step 3: Start the flxng application stack.
 echo "Starting flxng application stack..."
 cd "$FLXNG_PATH"
 # docker compose pull # Optional: Pull latest images before starting
-docker compose up -d --build
+docker compose up -d
 
 # Step 4: Start the video-downloader application stack.
 if [ -d "$VIDEO_DOWNLOADER_PATH" ]; then
   echo "Starting video-downloader application stack..."
   cd "$VIDEO_DOWNLOADER_PATH"
-  docker compose up -d --build
+  docker compose up -d
 fi
 
 echo "All stacks started successfully!"
