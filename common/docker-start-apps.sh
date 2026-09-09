@@ -9,10 +9,14 @@ set -e
 PROXY_PATH="/var/www/proxy"
 SCOUT_PATH="/var/www/scout"
 FLXNG_PATH="/var/www/flxng"
+VIDEO_DOWNLOADER_PATH="/var/www/video-downloader"
 
 # First stop all the apps in case they are running
 echo "Stopping all running stacks..."
 
+if [ -d "$VIDEO_DOWNLOADER_PATH" ]; then
+  cd "$VIDEO_DOWNLOADER_PATH" && docker compose down
+fi
 cd "$FLXNG_PATH" && docker compose down
 cd "$SCOUT_PATH" && docker compose down
 cd "$PROXY_PATH" && docker compose down 
@@ -38,5 +42,12 @@ echo "Starting flxng application stack..."
 cd "$FLXNG_PATH"
 # docker compose pull # Optional: Pull latest images before starting
 docker compose up -d --build
+
+# Step 4: Start the video-downloader application stack.
+if [ -d "$VIDEO_DOWNLOADER_PATH" ]; then
+  echo "Starting video-downloader application stack..."
+  cd "$VIDEO_DOWNLOADER_PATH"
+  docker compose up -d --build
+fi
 
 echo "All stacks started successfully!"
