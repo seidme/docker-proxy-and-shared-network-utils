@@ -19,9 +19,16 @@ backup_raw_schema() {
     local BACKUP_FILE="${BACKUP_DIR}/${DBNAME}-raw-MB-${DATE}.sql.gz"
     local STATE_FILE="${BACKUP_DIR}/.${DBNAME}.${SCHEMA}.last_state"
 
+    # 0. Provjeri dostupnost baze
+    if ! /usr/bin/docker exec -e PGPASSWORD="$PG_PASS" postgresdb psql -U postgres -d "$DBNAME" -c '\q' 2>/dev/null; then
+        echo "ERROR: Cannot connect to database '$DBNAME' in postgresdb container."
+        /usr/bin/python3 /var/www/common/server-health-check.py || true
+        return 1
+    fi
+
     # Provjeri da li postoji raw shema u bazi
     local SCHEMA_EXISTS=$(/usr/bin/docker exec -e PGPASSWORD="$PG_PASS" postgresdb psql -U postgres -d "$DBNAME" -Atc \
-        "SELECT 1 FROM information_schema.schemata WHERE schema_name = '$SCHEMA';" 2>/dev/null || echo "")
+        "SELECT 1 FROM information_schema.schemata WHERE schema_name = '$SCHEMA';" 2>/dev/null || echo "0")
 
     if [ "$SCHEMA_EXISTS" != "1" ]; then
         echo "[$DBNAME] Shema '$SCHEMA' ne postoji u bazi. Preskacem."
@@ -32,6 +39,7 @@ backup_raw_schema() {
     local CURRENT_STATE=$(/usr/bin/docker exec -e PGPASSWORD="$PG_PASS" postgresdb psql -U postgres -d "$DBNAME" -Atc \
         "SELECT COALESCE(sum(n_tup_ins), 0) || ':' || COALESCE(sum(n_tup_upd), 0) || ':' || COALESCE(sum(n_tup_del), 0) FROM pg_stat_user_tables WHERE schemaname = '$SCHEMA';" 2>/dev/null || echo "")
 
+    # Provjera stanja: preskoči ako nema novih izmjena
     if [ "$FORCE" = false ]; then
         if [ -z "$CURRENT_STATE" ]; then
             echo "WARNING: Could not fetch stats for '$DBNAME.$SCHEMA'. Proceeding with fallback backup."
@@ -66,12 +74,12 @@ backup_raw_schema() {
         # 4. Spasi novo stanje promjena tek nakon uspjesnog uploada
         echo "$CURRENT_STATE" > "$STATE_FILE"
 
-        # 5. Rotacija: zadrži zadnja 3 lokalna mjesečna raw backupa
+        # 5. Rotacija: zadrži samo 1 najnoviji lokalni raw backup (obriši sve starije)
         local RAW_BACKUPS=($(ls -t "$BACKUP_DIR"/"$DBNAME"-raw-MB-*.sql* 2>/dev/null || true))
-        if [ ${#RAW_BACKUPS[@]} -gt 3 ]; then
-            for ((i=3; i<${#RAW_BACKUPS[@]}; i++)); do
+        if [ ${#RAW_BACKUPS[@]} -gt 1 ]; then
+            for ((i=1; i<${#RAW_BACKUPS[@]}; i++)); do
                 local OLD_BACKUP="${RAW_BACKUPS[$i]}"
-                if [ -f "$OLD_BACKUP" ]; then
+                if [ -f "$OLD_BACKUP" ] && [ "$OLD_BACKUP" != "$BACKUP_FILE" ]; then
                     echo "[$DBNAME.$SCHEMA] Brisanje starog lokalnog raw backupa: $OLD_BACKUP"
                     rm -f "$OLD_BACKUP"
                 fi
