@@ -71,16 +71,14 @@ backup_database() {
         # 4. Spasi novo stanje promjena tek nakon uspjesnog uploada
         echo "$CURRENT_STATE" > "$STATE_FILE"
 
-        # 5. Rotacija: zadrži samo 1 najnoviji lokalni backup (obriši sve starije)
+        # 5. Rotacija: obriši samo prethodni automatski backup (ne sve ostale)
         local AUTO_BACKUPS=($(ls -t "$BACKUP_DIR"/"$DBNAME"-AB-*.sql* 2>/dev/null || true))
-        if [ ${#AUTO_BACKUPS[@]} -gt 1 ]; then
-            for ((i=1; i<${#AUTO_BACKUPS[@]}; i++)); do
-                local PREV_BACKUP="${AUTO_BACKUPS[$i]}"
-                if [ -f "$PREV_BACKUP" ] && [ "$PREV_BACKUP" != "$BACKUP_FILE" ]; then
-                    echo "[$DBNAME] Brisanje starog lokalnog backupa: $PREV_BACKUP"
-                    rm -f "$PREV_BACKUP"
-                fi
-            done
+        if [ ${#AUTO_BACKUPS[@]} -ge 2 ]; then
+            local PREV_BACKUP="${AUTO_BACKUPS[1]}"
+            if [ -f "$PREV_BACKUP" ] && [ "$PREV_BACKUP" != "$BACKUP_FILE" ]; then
+                echo "[$DBNAME] Brisanje prethodnog lokalnog backupa: $PREV_BACKUP"
+                rm -f "$PREV_BACKUP"
+            fi
         fi
     fi
 }

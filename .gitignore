@@ -1,3 +1,7 @@
 scout
 flxng
 proxy/certbot
+server-migrate/bundle/
+server-migrate/*.tar.gz
+server-migrate/.env*
+
