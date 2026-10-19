@@ -70,30 +70,30 @@ try:
 except Exception as e:
     warnings.append(f"Failed to check backups: {e}")
 
-# 4. Service Endpoint Health Check (Video Downloader)
-try:
-    import urllib.request
-    import json
-    req = urllib.request.Request("https://video.codeeve.com/api/health", headers={"User-Agent": "Server-Health-Check/1.0"})
-    with urllib.request.urlopen(req, timeout=10) as response:
-        if response.status == 200:
-            data = json.loads(response.read().decode())
-            status = data.get("status", "unknown")
-            storage = data.get("storage", {})
-            used_mb = storage.get("usedMB", "0")
-            max_gb = storage.get("maxGB", "2.0")
-            usage_pct = float(storage.get("usagePercent", 0.0))
-            active_jobs = data.get("activeJobs", 0)
-
-            status_lines.append(f"Video Downloader: {status} (Storage: {used_mb}MB / {max_gb}GB [{usage_pct}%], Active Jobs: {active_jobs})")
-            if status != "online":
-                warnings.append(f"⚠️ VIDEO DOWNLOADER ALERT: Status is '{status}' (Expected 'online')")
-            if usage_pct >= 90:
-                warnings.append(f"⚠️ VIDEO DOWNLOADER ALERT: Storage usage at {usage_pct}% (>= 90%)")
-        else:
-            warnings.append(f"⚠️ VIDEO DOWNLOADER ALERT: Health check returned HTTP status {response.status}")
-except Exception as e:
-    warnings.append(f"⚠️ VIDEO DOWNLOADER ALERT: Failed to reach https://video.codeeve.com/api/health: {e}")
+# 4. Service Endpoint Health Check (Video Downloader) - trenutno ne treba (servis je privremeno ugasen)
+# try:
+#     import urllib.request
+#     import json
+#     req = urllib.request.Request("https://video.codeeve.com/api/health", headers={"User-Agent": "Server-Health-Check/1.0"})
+#     with urllib.request.urlopen(req, timeout=10) as response:
+#         if response.status == 200:
+#             data = json.loads(response.read().decode())
+#             status = data.get("status", "unknown")
+#             storage = data.get("storage", {})
+#             used_mb = storage.get("usedMB", "0")
+#             max_gb = storage.get("maxGB", "2.0")
+#             usage_pct = float(storage.get("usagePercent", 0.0))
+#             active_jobs = data.get("activeJobs", 0)
+# 
+#             status_lines.append(f"Video Downloader: {status} (Storage: {used_mb}MB / {max_gb}GB [{usage_pct}%], Active Jobs: {active_jobs})")
+#             if status != "online":
+#                 warnings.append(f"⚠️ VIDEO DOWNLOADER ALERT: Status is '{status}' (Expected 'online')")
+#             if usage_pct >= 90:
+#                 warnings.append(f"⚠️ VIDEO DOWNLOADER ALERT: Storage usage at {usage_pct}% (>= 90%)")
+#         else:
+#             warnings.append(f"⚠️ VIDEO DOWNLOADER ALERT: Health check returned HTTP status {response.status}")
+# except Exception as e:
+#     warnings.append(f"⚠️ VIDEO DOWNLOADER ALERT: Failed to reach https://video.codeeve.com/api/health: {e}")
 
 # Send Email ONLY if there are warnings (or if forced via --test)
 send_test = "--test" in sys.argv
