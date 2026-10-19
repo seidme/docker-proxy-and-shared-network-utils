@@ -6,28 +6,48 @@ DATE=$(date +%F)
 RCLONE_BIN="/home/seidme/.local/bin/rclone"
 GDRIVE_REMOTE="gdrive:"
 PG_PASS="7Hjdf4l#-cqYeD89@-wapKe34=-er5Tfv3!"
+FORCE=false
+if [ "$1" == "--force" ]; then
+    FORCE=true
+fi
 
 echo "=== [$(date '+%Y-%m-%d %H:%M:%S')] Starting automated database backup check ==="
 
 backup_database() {
     local DBNAME="$1"
+    local SCHEMA="$2"
     local BACKUP_FILE="${BACKUP_DIR}/${DBNAME}-AB-${DATE}.sql.gz"
     local STATE_FILE="${BACKUP_DIR}/.${DBNAME}.last_state"
-    
-    # Dobavi stanje promjena (commiti, inserti, updejti, deleti)
-    local CURRENT_STATE=$(/usr/bin/docker exec -e PGPASSWORD="$PG_PASS" postgresdb psql -U postgres -Atc         "SELECT xact_commit || ':' || tup_inserted || ':' || tup_updated || ':' || tup_deleted FROM pg_stat_database WHERE datname = '$DBNAME';" 2>/dev/null || echo "")
+    local DUMP_ARGS=()
 
-    if [ -z "$CURRENT_STATE" ]; then
-        echo "WARNING: Could not fetch database stats for '$DBNAME'. Proceeding with fallback backup."
-    elif [ -f "$STATE_FILE" ] && [ "$CURRENT_STATE" == "$(cat "$STATE_FILE" 2>/dev/null)" ]; then
-        echo "[$DBNAME] Nema novih izmjena u bazi od zadnjeg backupa ($CURRENT_STATE). Preskacem dump i upload."
-        return 0
+    if [ -n "$SCHEMA" ]; then
+        DUMP_ARGS+=(--schema="$SCHEMA")
+        # Dobavi stanje promjena (inserti, updejti, deleti) za specifičnu shemu
+        local CURRENT_STATE=$(/usr/bin/docker exec -e PGPASSWORD="$PG_PASS" postgresdb psql -U postgres -d "$DBNAME" -Atc \
+            "SELECT COALESCE(sum(n_tup_ins), 0) || ':' || COALESCE(sum(n_tup_upd), 0) || ':' || COALESCE(sum(n_tup_del), 0) FROM pg_stat_user_tables WHERE schemaname = '$SCHEMA';" 2>/dev/null || echo "")
+    else
+        # Isključi raw shemu iz standardnog nightly backupa
+        DUMP_ARGS+=(--exclude-schema=raw)
+        # Dobavi stanje promjena za sve sheme osim raw
+        local CURRENT_STATE=$(/usr/bin/docker exec -e PGPASSWORD="$PG_PASS" postgresdb psql -U postgres -d "$DBNAME" -Atc \
+            "SELECT COALESCE(sum(n_tup_ins), 0) || ':' || COALESCE(sum(n_tup_upd), 0) || ':' || COALESCE(sum(n_tup_del), 0) FROM pg_stat_user_tables WHERE schemaname != 'raw';" 2>/dev/null || echo "")
     fi
 
-    echo "[$DBNAME] Detektovane nove izmjene (ili prvi run). Pokrecem backup..."
+    if [ "$FORCE" = false ]; then
+        if [ -z "$CURRENT_STATE" ]; then
+            echo "WARNING: Could not fetch database stats for '$DBNAME' (schema: ${SCHEMA:-all except raw}). Proceeding with fallback backup."
+        elif [ -f "$STATE_FILE" ] && [ "$CURRENT_STATE" == "$(cat "$STATE_FILE" 2>/dev/null)" ]; then
+            echo "[$DBNAME] Nema novih izmjena u bazi od zadnjeg backupa ($CURRENT_STATE). Preskacem dump i upload."
+            return 0
+        fi
+    else
+        echo "[$DBNAME] Force flag uključen. Pokrećem backup bez obzira na stanje..."
+    fi
+
+    echo "[$DBNAME] Detektovane nove izmjene (ili prvi run / force). Pokrecem backup (schema: ${SCHEMA:-all except raw})..."
     
     # 1. Kreiraj kompresovani backup
-    /usr/bin/docker exec -e PGPASSWORD="$PG_PASS" postgresdb pg_dump -U postgres "$DBNAME" 2>/dev/null | gzip > "$BACKUP_FILE"
+    /usr/bin/docker exec -e PGPASSWORD="$PG_PASS" postgresdb pg_dump -U postgres "${DUMP_ARGS[@]}" "$DBNAME" 2>/dev/null | gzip > "$BACKUP_FILE"
     
     # 2. Provjera veličine (minimalno 1MB)
     local FILE_SIZE=$(stat -c%s "$BACKUP_FILE" 2>/dev/null || stat -f%z "$BACKUP_FILE" 2>/dev/null || echo 0)
@@ -63,8 +83,8 @@ backup_database() {
     fi
 }
 
-# Pokreni provjeru i backup za obje baze
-backup_database "Scout2DB"
+# Pokreni provjeru i backup za obje baze (Scout2DB cilja samo public shemu)
+backup_database "Scout2DB" "public"
 backup_database "synora"
 
 # Očisti privremeni Docker build cache
