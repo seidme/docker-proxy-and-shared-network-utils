@@ -67,16 +67,31 @@ ${TARGET_USER} ALL=(ALL) NOPASSWD: /usr/bin/docker, /usr/local/bin/docker
 EOF
 chmod 0440 /etc/sudoers.d/90-seidme-docker
 
+mkdir -p "/home/${TARGET_USER}/.ssh"
+if [ -f /root/.ssh/authorized_keys ] && [ ! -f "/home/${TARGET_USER}/.ssh/authorized_keys" ]; then
+  cp /root/.ssh/authorized_keys "/home/${TARGET_USER}/.ssh/authorized_keys"
+fi
+chmod 700 "/home/${TARGET_USER}/.ssh"
+chmod 600 "/home/${TARGET_USER}/.ssh/authorized_keys" 2>/dev/null || true
+chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.ssh"
+
 mkdir -p /var/www
+if [ -d /root/server-migrate ] && [ ! -d /var/www/server-migrate ]; then
+  cp -a /root/server-migrate /var/www/server-migrate
+fi
 chown -R "${TARGET_USER}:${TARGET_USER}" /var/www
 
 echo "=== [6/6] Installing Standalone rclone Binary for '${TARGET_USER}' ==="
+ARCH="$(dpkg --print-architecture)"
+if [ "${ARCH}" = "arm64" ]; then
+  docker run --privileged --rm tonistiigi/binfmt --install amd64 >/dev/null 2>&1 || true
+fi
 sudo -u "${TARGET_USER}" mkdir -p "/home/${TARGET_USER}/.local/bin" "/home/${TARGET_USER}/.config/rclone"
-if [ ! -x "/home/${TARGET_USER}/.local/bin/rclone" ]; then
+if [ ! -x "/home/${TARGET_USER}/.local/bin/rclone" ] || ! "/home/${TARGET_USER}/.local/bin/rclone" version >/dev/null 2>&1; then
   TMP_RCLONE="$(mktemp -d)"
-  curl -fsSL https://downloads.rclone.org/rclone-current-linux-amd64.zip -o "${TMP_RCLONE}/rclone.zip"
+  curl -fsSL "https://downloads.rclone.org/rclone-current-linux-${ARCH}.zip" -o "${TMP_RCLONE}/rclone.zip"
   python3 -m zipfile -e "${TMP_RCLONE}/rclone.zip" "${TMP_RCLONE}/"
-  cp "${TMP_RCLONE}"/rclone-*-linux-amd64/rclone "/home/${TARGET_USER}/.local/bin/rclone"
+  cp "${TMP_RCLONE}"/rclone-*-linux-${ARCH}/rclone "/home/${TARGET_USER}/.local/bin/rclone"
   chmod 775 "/home/${TARGET_USER}/.local/bin/rclone"
   chown "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.local/bin/rclone"
   rm -rf "${TMP_RCLONE}"
